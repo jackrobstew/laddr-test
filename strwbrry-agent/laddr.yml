@@ -1,0 +1,13 @@
+project:
+  name: strwbrry-agent
+  broker: memory
+  database: sqlite
+  storage: local
+  tracing: true
+  metrics: true
+  agents:
+  - vault_advisor
+  - skeptic
+  - pattern_seeker
+  - guardian
+  - jd_classifier
