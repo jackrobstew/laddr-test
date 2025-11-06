@@ -53,17 +53,29 @@ pip install laddr
 
 ### 2. Configure
 
-Edit `.env`:
+First, set up your environment file:
 
 ```bash
-# Your OpenRouter API key (required)
-OPENAI_API_KEY=your-openrouter-key-here
+# Copy the example file
+cp .env.example .env
 
-# Path to your vault (required)
+# Edit .env and add your settings
+nano .env  # or use your preferred editor
+```
+
+**Required settings in `.env`:**
+
+```bash
+# Your OpenRouter API key
+OPENAI_API_KEY=sk-or-v1-your-key-here
+
+# Path to your Strwbrry vault
 VAULT_PATH=/path/to/Documents/SPLN
 ```
 
-Get an OpenRouter key at: https://openrouter.ai/keys
+**Get an OpenRouter key:** https://openrouter.ai/keys (free credits available)
+
+**Note:** `.env` is gitignored for security - your API keys stay local!
 
 ### 3. Run Advisory Council
 
