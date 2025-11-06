@@ -41,7 +41,14 @@ async def get_advisory_report():
 
     try:
         print("\nRunning advisory council analysis...")
-        print("(This may take 1-2 minutes as agents analyze your vault)\n")
+        print("(This may take 3-10 minutes as all agents analyze your vault)")
+        print("\nProgress:")
+        print("  1. Vault Advisor coordinates analysis...")
+        print("  2. The Skeptic analyzes stated vs actual priorities...")
+        print("  3. The Pattern Seeker identifies cycles...")
+        print("  4. The Guardian assesses risks...")
+        print("  5. Final synthesis and recommendations...")
+        print("\n⏳ Please wait - comprehensive analysis in progress...\n")
 
         runner = AgentRunner(env_config=LaddrConfig())
         result = await runner.run(
@@ -49,6 +56,7 @@ async def get_advisory_report():
             agent_name="vault_advisor"
         )
 
+        print("\n✅ Analysis complete!\n")
         print("-"*70)
 
         if result.get("status") == "success":

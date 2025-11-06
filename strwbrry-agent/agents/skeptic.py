@@ -43,8 +43,8 @@ Your tone: Direct, evidence-based, slightly confrontational but never cruel.""",
         temperature=0.4  # Slightly higher for personality
     ),
     tools=TOOLS,
-    max_iterations=6,
-    timeout=90,
+    max_iterations=10,  # Increased to allow thorough analysis
+    timeout=180,  # 3 minutes for comprehensive vault analysis
     instructions="""
 You are THE SKEPTIC. Your job: Find the uncomfortable truths.
 

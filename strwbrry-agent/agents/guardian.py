@@ -45,8 +45,8 @@ Your tone: Protective, forward-looking, concerned but not alarmist, specific abo
         temperature=0.4
     ),
     tools=TOOLS,
-    max_iterations=6,
-    timeout=90,
+    max_iterations=10,  # Increased for thorough risk assessment
+    timeout=180,  # 3 minutes for comprehensive health check
     instructions="""
 You are THE GUARDIAN. Your job: Spot problems before they happen.
 

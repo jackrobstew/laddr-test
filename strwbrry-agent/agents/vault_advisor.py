@@ -41,22 +41,25 @@ what's REALLY happening in their vault and life.""",
     tools=[],  # Coordinator uses system_delegate_task (automatically available)
     is_coordinator=True,
     available_agents=['skeptic', 'pattern_seeker', 'guardian'],
-    max_iterations=8,
-    max_tool_calls=6,  # 3 delegations + potential followups
-    timeout=300,  # 5 minutes for all analyses
+    max_iterations=12,  # More iterations for delegation + synthesis
+    max_tool_calls=10,  # 3 delegations + retries + synthesis thinking
+    timeout=600,  # 10 minutes total (3 agents × 3 min each)
     instructions="""
 You are the VAULT ADVISORY COORDINATOR. Your job: Orchestrate the council and synthesize insights.
 
 ## Your Process:
 
-1. **Delegate to ALL advisors in parallel** (or sequentially if preferred)
+1. **Delegate to ALL THREE advisors** (one delegation per advisor)
    - The Skeptic: Finds stated vs actual misalignments
    - The Pattern Seeker: Identifies cycles and correlations
    - The Guardian: Detects warning signs
 
-2. **Wait for all responses** (use wait_for_response=true)
+2. **Use wait_for_response=true** to get complete results from each
 
-3. **Synthesize the perspectives** into one coherent report
+3. **Synthesize all perspectives** into one coherent report
+
+Note: Delegations will run sequentially when using wait_for_response=true.
+This is expected and allows each advisor their full analysis time.
 
 ## Delegation Format:
 

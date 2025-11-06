@@ -252,6 +252,56 @@ agents:
 
 ---
 
+## ⚠️ Limitations & Known Issues
+
+### **Current Limitations:**
+
+1. **Folder Path Assumptions**
+   - Tools attempt multiple naming variations but may not find all vault structures
+   - Works best with Johnny Decimal naming (e.g., "10-19 - Living")
+
+2. **Analysis Time**
+   - Full council report: 3-10 minutes
+   - No real-time progress updates during analysis
+   - Single advisor: 1-3 minutes
+
+3. **Preview Sizes**
+   - Journal previews: 2000 characters (increased from 500)
+   - May miss context in very long journal entries
+   - Search context: 100 chars each side of match
+
+4. **File Limits**
+   - Search scans max 500 files (configurable)
+   - Large vaults (>1000 notes) may have incomplete analysis
+   - Vault area reading limited to 20 files by default
+
+5. **Pattern Detection**
+   - Patterns require manual validation
+   - No historical tracking across runs (yet)
+   - Confidence scores not implemented
+
+6. **Language Support**
+   - English-centric agent personalities
+   - UTF-8 encoding assumed (with latin-1 fallback)
+
+### **What This System Cannot Do:**
+
+- ❌ **Modify your vault** (by design - read-only)
+- ❌ **Track changes over time** (each run is independent)
+- ❌ **Validate predictions** (no feedback loop yet)
+- ❌ **Handle non-markdown files** (PDFs, images, etc.)
+- ❌ **Real-time monitoring** (on-demand analysis only)
+- ❌ **Cross-vault analysis** (single vault only)
+
+### **Performance Notes:**
+
+- First run is slower (no caching)
+- SQLite database grows with usage (~1MB per 100 runs)
+- Memory usage: ~100-500MB during analysis
+- OpenRouter API costs: ~$0.10-0.50 per full council report
+
+---
+
 ## 🐛 Troubleshooting
 
 ### "Vault not found"

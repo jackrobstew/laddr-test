@@ -45,8 +45,8 @@ Your tone: Curious, analytical, pattern-obsessed, slightly detective-like.""",
         temperature=0.5  # Higher for creative pattern recognition
     ),
     tools=TOOLS,
-    max_iterations=6,
-    timeout=90,
+    max_iterations=10,  # Increased for pattern analysis across time
+    timeout=180,  # 3 minutes for comprehensive analysis
     instructions="""
 You are THE PATTERN SEEKER. Your job: Find the cycles others don't see.
 

@@ -166,13 +166,14 @@ def count_updates_by_area(days: int = 30) -> Dict:
 
 
 @tool
-def read_recent_journals(days: int = 7, area: str = "10-19 - Living") -> Dict:
+def read_recent_journals(days: int = 7, area: str = "10-19 - Living", preview_chars: int = 2000) -> Dict:
     """
     Read recent journal entries to understand current state.
 
     Args:
         days: Number of days to look back
         area: Journal area (default: 10-19 - Living)
+        preview_chars: Number of characters to include in preview (default: 2000)
 
     Returns:
         Dictionary with journal entries
@@ -187,13 +188,27 @@ def read_recent_journals(days: int = 7, area: str = "10-19 - Living") -> Dict:
 
     cutoff_time = (datetime.now() - timedelta(days=days)).timestamp()
 
-    # Look for journal files (typically in daily journal folder)
-    journal_path = area_path / "10 - Daily Journal" / "10.10 - Daily Journal - 2025"
-    if not journal_path.exists():
-        journal_path = area_path / "10 - Daily Journal"
+    # Try to find journal folder - check multiple possible locations
+    current_year = datetime.now().year
+    possible_paths = [
+        area_path / "10 - Daily Journal" / f"10.10 - Daily Journal - {current_year}",
+        area_path / "10 - Daily Journal" / f"10.10 - Daily Journal - {current_year - 1}",  # Previous year
+        area_path / "10 - Daily Journal",
+        area_path,  # Fallback to area root
+    ]
 
-    if not journal_path.exists():
-        return {"error": "Daily journal folder not found", "searched": str(area_path)}
+    journal_path = None
+    for path in possible_paths:
+        if path.exists():
+            journal_path = path
+            break
+
+    if not journal_path:
+        return {
+            "error": "Daily journal folder not found",
+            "searched": str(area_path),
+            "tried_paths": [str(p) for p in possible_paths]
+        }
 
     md_files = list(journal_path.rglob("*.md"))
     recent_journals = [
@@ -208,29 +223,41 @@ def read_recent_journals(days: int = 7, area: str = "10-19 - Living") -> Dict:
     for journal_file in recent_journals[:days]:
         stat = journal_file.stat()
 
-        # Read first 500 chars for preview
+        # Read preview with better error handling
         try:
             content = journal_file.read_text(encoding='utf-8')
-            preview = content[:500] + "..." if len(content) > 500 else content
-        except:
-            preview = "[Could not read content]"
+            preview = content[:preview_chars] + "..." if len(content) > preview_chars else content
+            word_count = len(content.split())
+        except UnicodeDecodeError:
+            try:
+                content = journal_file.read_text(encoding='latin-1')
+                preview = content[:preview_chars] + "..."
+                word_count = len(content.split())
+            except Exception as e:
+                preview = f"[Could not read content: {type(e).__name__}]"
+                word_count = 0
+        except Exception as e:
+            preview = f"[Could not read content: {type(e).__name__}]"
+            word_count = 0
 
         journal_entries.append({
             "date": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d"),
             "name": journal_file.name,
             "size_kb": round(stat.st_size / 1024, 2),
-            "preview": preview
+            "preview": preview,
+            "word_count": word_count
         })
 
     return {
         "period_days": days,
         "entries_found": len(journal_entries),
-        "entries": journal_entries
+        "entries": journal_entries,
+        "journal_path_used": str(journal_path)
     }
 
 
 @tool
-def search_vault_content(query: str, area: Optional[str] = None, limit: int = 10) -> Dict:
+def search_vault_content(query: str, area: Optional[str] = None, limit: int = 10, max_files: int = 500) -> Dict:
     """
     Search for specific content across vault (or specific area).
 
@@ -238,6 +265,7 @@ def search_vault_content(query: str, area: Optional[str] = None, limit: int = 10
         query: Search term
         area: Optional area to restrict search
         limit: Max results to return
+        max_files: Maximum files to scan (default: 500)
 
     Returns:
         Dictionary with matching files
@@ -251,33 +279,42 @@ def search_vault_content(query: str, area: Optional[str] = None, limit: int = 10
         return {"error": f"Path {search_path} not found"}
 
     matches = []
-    md_files = list(search_path.rglob("*.md"))[:100]  # Limit to first 100 for performance
+    md_files = list(search_path.rglob("*.md"))[:max_files]
+    files_searched = len(md_files)
+    errors = 0
 
     for md_file in md_files:
         try:
             content = md_file.read_text(encoding='utf-8').lower()
             if query.lower() in content:
-                # Get context around match
+                # Get context around match (larger window)
                 index = content.find(query.lower())
-                start = max(0, index - 50)
-                end = min(len(content), index + len(query) + 50)
-                context = content[start:end]
+                start = max(0, index - 100)
+                end = min(len(content), index + len(query) + 100)
+                context = content[start:end].strip()
 
                 matches.append({
                     "path": str(md_file.relative_to(vault_root)),
-                    "context": f"...{context}..."
+                    "context": f"...{context}...",
+                    "modified": datetime.fromtimestamp(md_file.stat().st_mtime).strftime("%Y-%m-%d")
                 })
 
                 if len(matches) >= limit:
                     break
-        except:
+        except UnicodeDecodeError:
+            errors += 1
+            continue
+        except Exception:
+            errors += 1
             continue
 
     return {
         "query": query,
         "searched_area": area or "entire vault",
         "matches_found": len(matches),
-        "matches": matches
+        "matches": matches,
+        "files_searched": files_searched,
+        "errors": errors
     }
 
 
@@ -286,14 +323,41 @@ def analyze_strwbrry_folder() -> Dict:
     """
     Analyze the 80-Strwbrry folder to understand hopes, implementations, and outcomes.
     Returns structured data about user's self-declared goals and systems.
+    Tries multiple possible folder names to be resilient.
     """
     vault_root = _find_vault_root()
     if not vault_root:
         return {"error": "Vault not found"}
 
-    strwbrry_path = vault_root / "80-89 - System" / "80 - Strwbrry"
-    if not strwbrry_path.exists():
-        return {"error": "Strwbrry folder not found"}
+    # Try multiple possible paths for Strwbrry folder
+    possible_system_areas = ["80-89 - System", "80 - System", "System"]
+    possible_strwbrry_names = ["80 - Strwbrry", "80.00 - Strwbrry", "Strwbrry"]
+
+    strwbrry_path = None
+    for system_area in possible_system_areas:
+        for strwbrry_name in possible_strwbrry_names:
+            test_path = vault_root / system_area / strwbrry_name
+            if test_path.exists():
+                strwbrry_path = test_path
+                break
+        if strwbrry_path:
+            break
+
+    if not strwbrry_path:
+        # Try direct strwbrry folder
+        for strwbrry_name in possible_strwbrry_names:
+            test_path = vault_root / strwbrry_name
+            if test_path.exists():
+                strwbrry_path = test_path
+                break
+
+    if not strwbrry_path:
+        return {
+            "error": "Strwbrry folder not found",
+            "tried_paths": [
+                f"{sa}/{sn}" for sa in possible_system_areas for sn in possible_strwbrry_names
+            ]
+        }
 
     result = {
         "hopes": [],
@@ -302,33 +366,37 @@ def analyze_strwbrry_folder() -> Dict:
         "what_didnt_work": []
     }
 
-    # Look for key files
-    key_files = {
-        "hopes": "01 - Hopes",
-        "implementations": "03 - Implementations",
-        "worked": "05 - What Has Worked",
-        "didnt_work": "06 - What Hasn't Worked"
+    # Look for key folders with flexible naming
+    key_folders_variants = {
+        "hopes": ["01 - Hopes", "Hopes", "01-Hopes"],
+        "implementations": ["03 - Implementations", "Implementations", "03-Implementations"],
+        "what_worked": ["05 - What Has Worked", "What Has Worked", "05-What Has Worked"],
+        "what_didnt_work": ["06 - What Hasn't Worked", "What Hasn't Worked", "06-What Hasn't Worked"]
     }
 
-    for key, folder_name in key_files.items():
-        folder_path = strwbrry_path / folder_name
-        if folder_path.exists():
-            md_files = list(folder_path.rglob("*.md"))
-            result[key] = [
-                {
-                    "name": f.name,
-                    "path": str(f.relative_to(vault_root)),
-                    "modified": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d")
-                }
-                for f in md_files
-            ]
+    for key, folder_variants in key_folders_variants.items():
+        for folder_name in folder_variants:
+            folder_path = strwbrry_path / folder_name
+            if folder_path.exists():
+                md_files = list(folder_path.rglob("*.md"))
+                result[key] = [
+                    {
+                        "name": f.name,
+                        "path": str(f.relative_to(vault_root)),
+                        "modified": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d"),
+                        "size_kb": round(f.stat().st_size / 1024, 2)
+                    }
+                    for f in md_files
+                ]
+                break  # Found the folder, stop trying variants
 
     return {
         "strwbrry_analysis": result,
         "total_hopes": len(result["hopes"]),
         "total_implementations": len(result["implementations"]),
         "validated_worked": len(result["what_worked"]),
-        "validated_failed": len(result["what_didnt_work"])
+        "validated_failed": len(result["what_didnt_work"]),
+        "strwbrry_path_used": str(strwbrry_path)
     }
 
 
